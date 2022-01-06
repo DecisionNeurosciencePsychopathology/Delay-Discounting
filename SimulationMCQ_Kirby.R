@@ -17,6 +17,11 @@
 #from these models were converted into z statistics through
 #division by corresponding standard deviations."
 
+##k_sub: one's individual discount rate in two-stage approaches to estimating individual discount rates and choice consistencies (p.4 JoAP for more details)
+##log_k_sub: log-transformed individual discount rate 
+##consistency: proportion of choices consistent with the most likely k_sub, 
+#in two-stage approaches to estimating individual discount rates and choice consistencies (p.4 JoaP for more details)
+
 library(bbmle)
 library(lme4)
 library(tidyr)
@@ -130,7 +135,6 @@ for (id in ids) {
 df$log_k_sub = log(df$k_sub)
 
 sub_df1 <- df %>% select(ID, k_sub, log_k_sub, max_consistency, group) %>% unique()
-
 
 
 ####Groups 1 and 2, noise 0.33
@@ -343,7 +347,6 @@ post_mk1 <- describe_posterior(mk1, centrality = 'median', test = c('p_direction
 post2_mk1 <- insight::get_parameters(mk1)
 describe(post2_mk1)
 
-
 # KIRBY RECOVERING CONSISTENCY
 mk2 <- stan_lm(max_consistency ~ log_k_true * noise, data = df, prior=NULL, chains=4, iter=4000)
 summary(mk2)
@@ -351,5 +354,28 @@ describe_posterior(mk2)
 post_mk2 <- describe_posterior(mk2, centrality = 'median', test = c('p_direction', 'p_significance'))
 post2_mk2 <- insight::get_parameters(mk2)
 describe(post2_mk2)
+
+###Figure 1 in in the JoAP:
+###Flipped the sign of log_k_true below (When the true k is lower, 
+#Kirby estimates a lower recovered k whereas the MLM predicts a delayed choice, 
+#which depends on how delayed/immediate are coded.)
+A<- c(-20.75, -2.5, -11.5, -13.33)
+B<- c("True discount rate", "Consistency, \n 10% noise", "Consistency, \n 33% noise ", "Consistency, \n 67% noise")
+d <- as_tibble(A, names = "statistic")
+d$method <- 'MLM'
+d$predictor <- B
+###converting t to z for lm predicting log_k_sub z=t*sqrt(N)/sqrt(df[error]).
+C<-c(-18.7, -1,-4, -9)
+# the vector of Kirby/lm statistic should have (1) effect of true k on recovered k and (2-4) effects of true noise levels on consistencies
+D<-c("True discount rate", "Consistency, \n 10% noise", "Consistency, \n 33% noise ", "Consistency, \n 67% noise")
+# barplot(C, names.arg=D, ylab="z score")
+c <- as_tibble(C, names = "statistic")
+c$method = 'Two-stage estimation'
+c$predictor <- D
+k <- rbind(d,c)
+k1<-k%>% 
+  dplyr::rename(
+    Method = method)
+ggplot(k1, aes(predictor, value, color=Method)) + geom_point(stat="identity", size = 3.5) + xlab("Predictor") + ylab("z statistic")
 
 
